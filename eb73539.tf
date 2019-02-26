@@ -19,7 +19,7 @@ resource "digitalocean_droplet" "benchmark_node" {
   name               = "benchmark-node"
   region             = "fra1"
   private_networking = true
-  size               = "s-1vcpu-1gb"
+  size               = "s-4vcpu-8gb"
   ssh_keys           = ["${data.digitalocean_ssh_key.default.id}"]
   tags               = ["${digitalocean_tag.otr.id}"]
 
@@ -44,7 +44,7 @@ resource "digitalocean_droplet" "cassandra_node" {
   name               = "cassandra-node-${count.index}"
   region             = "fra1"
   private_networking = true
-  size               = "s-1vcpu-1gb"
+  size               = "s-6vcpu-16gb"
   ssh_keys           = ["${data.digitalocean_ssh_key.default.id}"]
   tags               = ["${digitalocean_tag.otr.id}"]
   count              = "${var.node_count}"
@@ -67,18 +67,14 @@ resource "null_resource" "cassandra_cluster" {
       "yum -y update",
       "yum -y install java-1.8.0-openjdk",
       "yum -y install cassandra",
-      "chkconfig cassandra on",
       "sed -i 's/^listen_address:.*/listen_address: ${element(digitalocean_droplet.cassandra_node.*.ipv4_address_private, count.index)}/g' /etc/cassandra/conf/cassandra.yaml",
       "sed -i 's/^rpc_address:.*/rpc_address: ${element(digitalocean_droplet.cassandra_node.*.ipv4_address_private, count.index)}/g' /etc/cassandra/conf/cassandra.yaml",
       "sed -i 's/^endpoint_snitch:.*/endpoint_snitch: GossipingPropertyFileSnitch/g' /etc/cassandra/conf/cassandra.yaml",
-
-      # only one seed node
       "sed -i 's/- seeds:.*/- seeds: \"${element(digitalocean_droplet.cassandra_node.*.ipv4_address_private, 0)}\"/g' /etc/cassandra/conf/cassandra.yaml",
-
-      # initialize empty cluster
       "echo >> /etc/cassandra/conf/cassandra.yaml",
       "echo 'auto_bootstrap: false' >> /etc/cassandra/conf/cassandra.yaml",
       "echo >> /etc/cassandra/conf/cassandra.yaml",
+      "chkconfig cassandra on",
     ]
   }
 
